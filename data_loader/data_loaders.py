@@ -41,7 +41,13 @@ class CocoDataLoader(BaseDataLoader):
         ])
         
         self.dataset = CocoWrapper(data_dir, transform=trsfm)
-        super(CocoDataLoader, self).__init__(self.dataset, self.batch_size, self.valid_batch_size, shuffle, validation_split, validation_fold, num_workers)
+        super(CocoDataLoader, self).__init__(self.dataset, self.batch_size, self.valid_batch_size, shuffle, validation_split, validation_fold, num_workers, collate_fn=self._collate)
+
+    def _collate(self, list_inputs):
+        data = torch.cat([d.unsqueeze(0) for d, t in list_inputs])
+        target = torch.zeros((data.shape[0], ), dtype=torch.long)
+        #TODO: implement target packing
+        return data, target
 
 
 class CubDataLoader(BaseDataLoader):
@@ -60,15 +66,17 @@ class CubDataLoader(BaseDataLoader):
         ])
         
         self.dataset = CubDataset(data_dir, transform=trsfm)
-        super(CubDataLoader, self).__init__(self.dataset, self.batch_size, self.valid_batch_size, shuffle, validation_split, validation_fold, num_workers)
+        super(CubDataLoader, self).__init__(self.dataset, self.batch_size, self.valid_batch_size, shuffle, validation_split, validation_fold, num_workers, collate_fn=self._collate)
+
+    def _collate(self, list_inputs):
+        data = torch.cat([d.unsqueeze(0) for d, t in list_inputs])
+        target = torch.zeros((data.shape[0], ), dtype=torch.long)
+        #TODO: implement target packing
+        return data, target
 
 if __name__ == '__main__':
     # coco_loader = CocoDataLoader('../cocoapi', 4)
     cub_loader = CubDataLoader('../data/birds', 4)
-    # for i, (data, target) in enumerate(cub_loader):
-    #     print(data.shape)
-    #     print(target)
-    #     break
     
     for i, (data, target) in enumerate(cub_loader):
         print(data.shape)

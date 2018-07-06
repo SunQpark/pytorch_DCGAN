@@ -28,8 +28,8 @@ class CubDataset(Dataset):
         image_path = os.path.join(self.image_dir, f'{fname}.jpg')
         text_path = os.path.join(self.text_dir, f'{fname}.txt')
 
-        # open image file
-        data = Image.open(image_path)
+        # open image file, convert to have 3 channels
+        data = Image.open(image_path).convert("RGB")
         
         # select one sentence from given set of captions
         with open(text_path, 'r') as text_file:
