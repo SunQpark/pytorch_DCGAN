@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from torchvision.utils import make_grid
 from torchvision import transforms
 from base import BaseTrainer
 
@@ -40,40 +41,56 @@ class Trainer(BaseTrainer):
         total_loss = 0
         total_metrics = np.zeros(len(self.metrics))
         for batch_idx, (data, _) in enumerate(self.data_loader):
+            batch_size = data.shape[0]
+            real_label = 1
+            fake_label = 0
             data = data.to(self.device)
+            label = torch.full((batch_size, ), real_label, device=self.device)
 
-            z = torch.randn((data.shape[0], 100, 1, 1), device=self.device)
-            target = torch.tensor([1]*data.shape[0] + [0]*data.shape[0], dtype=torch.float32, device=self.device) #TODO: fix this
-            #TODO: write validation logic
+            # train D with real data
+            self.g_optimizer.zero_grad()
+            self.d_optimizer.zero_grad()
+            # output, fake_x = self.model(z, data)
+            output = self.model.D(data)
+            errD_real = self.loss(output, label)
+            errD_real.backward(retain_graph=True)
 
-            self.optimizer.zero_grad()
-            output, fake_x = self.model(z, data)
-            loss = self.loss(output, target)
-            loss.backward()
-            self.optimizer.step()
+            # train D with fake data
+            label.fill_(fake_label)
+            z = torch.randn((batch_size, 100, 1, 1), device=self.device)
+            fake_x = self.model.G(z)
+            output = self.model.D(fake_x)
+            errD_fake = self.loss(output, label)
+            errD_fake.backward(retain_graph=True)
+
+            self.d_optimizer.step()
+
+            # train G
+            label.fill_(real_label)
+            # output = self.model.D(fake_x)
+            errG = self.loss(output, label)
+            errG.backward()
+
+            loss_D = errD_fake.item() + errD_real.item()
+            loss_G = errG.item()
+            loss = loss_G + loss_D
+
+            self.g_optimizer.step()
+
             self.train_iter += 1
-            self.writer.add_scalar(f'{self.training_name}/Train/loss', loss.item(), self.train_iter)
-            for i, metric in enumerate(self.metrics):
-                score = metric(output, target)
-                self.writer.add_scalar(f'{self.training_name}/Train/{metric.__name__}', score, self.train_iter)    
-                total_metrics[i] += score
-
-            # self.to_image = transforms.Compose([
-            #     # transforms.ToPILImage(),
-            #     transforms.Normalize(mean=[-0.485/0.229, -0.456/0.224, -0.406/0.255], std=[1/0.229, 1/0.224, 1/0.255]),
-            #     # transforms.ToTensor()
-            # ])
-            if self.train_iter % 64 == 0:
+            self.writer.add_scalar(f'{self.training_name}/Train/D_loss', loss_D, self.train_iter)
+            self.writer.add_scalar(f'{self.training_name}/Train/G_loss', loss_G, self.train_iter)
+        
+            if self.train_iter % 50 == 0:
                 # self.writer.add_image('image/orig', data, self.train_iter)
-                self.writer.add_image('image/generated', fake_x, self.train_iter)
+                self.writer.add_image('image/generated', make_grid(fake_x, normalize=True), self.train_iter)
 
-
-            total_loss += loss.item()
+            total_loss += loss
             log_step = int(np.sqrt(self.batch_size))
             if self.verbosity >= 2 and batch_idx % log_step == 0:
                 self.logger.info('Train Epoch: {} [{}/{} ({:.0f}%)] Loss: {:.6f}'.format(
                     epoch, batch_idx * len(data), len(self.data_loader) * len(data),
-                    100.0 * batch_idx / len(self.data_loader), loss.item()))
+                    100.0 * batch_idx / len(self.data_loader), loss))
 
         avg_loss = total_loss / len(self.data_loader)
         avg_metrics = (total_metrics / len(self.data_loader)).tolist()
@@ -97,12 +114,11 @@ class Trainer(BaseTrainer):
             total_val_metrics = np.zeros(len(self.metrics))
             for batch_idx, (data, _) in enumerate(self.valid_data_loader):
                 data = data.to(self.device)
+                batch_size = data.shape[0]
+                z = torch.randn((batch_size, 100, 1, 1), device=self.device)
 
-                z = torch.randn((data.shape[0], 100, 1, 1), device=self.device)
-                target = torch.tensor([1]*data.shape[0] + [0]*data.shape[0], dtype=torch.float32, device=self.device)
-
-                output = self.model(z, data)
-                loss = self.loss(output, target)
+                output, fake_x = self.model(z, data)
+                loss = self.loss(output[:batch_size], output[batch_size:])
                 total_val_loss += loss.item()
 
                 self.valid_iter += 1
@@ -113,6 +129,7 @@ class Trainer(BaseTrainer):
                     self.writer.add_scalar(f'{self.training_name}/Valid/{metric.__name__}', score, self.valid_iter)
 
             avg_val_loss = total_val_loss / len(self.valid_data_loader)
-            self.scheduler.step(avg_val_loss)
+            if self.scheduler is not None:
+                self.scheduler.step(avg_val_loss)
             avg_val_metrics = (total_val_metrics / len(self.valid_data_loader)).tolist()
         return {'val_loss': avg_val_loss, 'val_metrics': avg_val_metrics}

@@ -5,9 +5,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from model.model import DC_GAN
-# from model.loss import my_loss
+from model.loss import criterion
 # from model.metric import accuracy
-from data_loader import SVHNDataLoader
+from data_loader import CocoDataLoader, CubDataLoader
 from trainer import Trainer
 from logger import Logger
 from tensorboardX import SummaryWriter
@@ -21,8 +21,8 @@ parser.add_argument('-b', '--batch-size', default=32, type=int,
                     help='mini-batch size (default: 32)')
 parser.add_argument('-e', '--epochs', default=32, type=int,
                     help='number of total epochs (default: 32)')
-parser.add_argument('--lr', default=0.001, type=float,
-                    help='learning rate (default: 0.001)')
+parser.add_argument('--lr', default=0.0002, type=float,
+                    help='learning rate (default: 0.0002)')
 parser.add_argument('--wd', default=0.0, type=float,
                     help='weight decay (default: 0.0)')
 parser.add_argument('--resume', default='', type=str,
@@ -37,7 +37,7 @@ parser.add_argument('--data-dir', default='datasets', type=str,
                     help='directory of training/testing data (default: datasets)')
 parser.add_argument('--valid-batch-size', default=1000, type=int,
                     help='mini-batch size (default: 1000)')
-parser.add_argument('--validation-split', default=0.1, type=float,
+parser.add_argument('--validation-split', default=0.0, type=float,
                     help='ratio of split validation data, [0.0, 1.0) (default: 0.1)')
 parser.add_argument('--validation-fold', default=0, type=int,
                     help='select part of data to be used as validation set (default: 0)')
@@ -48,20 +48,27 @@ parser.add_argument('--no-cuda', action="store_true",
 def main(args):
     device = torch.device('cuda:0' if torch.cuda.is_available() and not args.no_cuda else 'cpu')
     # Model
-    model = DC_GAN(100, 3, 2)
+    # G = DC_Generator(100, n_size=2)
+    # D = DC_Discriminator(100, n_size=2)
+    model = DC_GAN(100, 3, n_size=4)
+    # model = (G, D)
+    
+    # print('generator: \n', G)
+    # print('discriminator: \n', D)
     model.summary()
 
     # A logger to store training process information
     train_logger = Logger()
 
     # Specifying loss function, metric(s), and optimizer
-    loss = nn.BCELoss()
+    loss = criterion
     metrics = []
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd, amsgrad=True)
-    lr_scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10)
+    g_optimizer = optim.Adam(model.G.parameters(), lr=args.lr, weight_decay=args.wd, amsgrad=True, betas=(0.5, 0.999))
+    d_optimizer = optim.Adam(model.D.parameters(), lr=args.lr, weight_decay=args.wd, amsgrad=True, betas=(0.5, 0.999))
 
     # Data loader and validation split
-    data_loader = SVHNDataLoader('datasets/', args.batch_size, args.valid_batch_size, args.validation_split, args.validation_fold, shuffle=True, num_workers=4)
+    data_loader = CubDataLoader('../data/birds', args.batch_size, args.valid_batch_size, args.validation_split, args.validation_fold, shuffle=True, num_workers=4)
+    # data_loader = CocoDataLoader('../cocoapi', args.batch_size, args.valid_batch_size, args.validation_split, args.validation_fold, shuffle=True, num_workers=4)
     valid_data_loader = data_loader.get_valid_loader()
 
     # An identifier for this training session
@@ -71,7 +78,7 @@ def main(args):
     trainer = Trainer(model, loss, metrics,
                       data_loader=data_loader,
                       valid_data_loader=valid_data_loader,
-                      optimizer=optimizer,
+                      optimizer=(g_optimizer, d_optimizer),
                       epochs=args.epochs,
                       train_logger=train_logger,
                       writer=writer,
@@ -81,8 +88,7 @@ def main(args):
                       verbosity=args.verbosity,
                       training_name=training_name,
                       device=device,
-                      lr_scheduler=lr_scheduler,
-                      monitor='accuracy',
+                      monitor='loss',
                       monitor_mode='max')
 
     # Start training!

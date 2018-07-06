@@ -16,16 +16,12 @@ class DC_Generator(BaseModel):
         
         self.conv1 = nn.ConvTranspose2d(n_z, 1024, n_size, 1, 0, bias=False)
         self.bn1 = nn.BatchNorm2d(1024)
-        
         self.conv2 = nn.ConvTranspose2d(1024, 512, 4, 2, 1, bias=False)
         self.bn2 = nn.BatchNorm2d(512)
-
         self.conv3 = nn.ConvTranspose2d(512,  256, 4, 2, 1, bias=False)
         self.bn3 = nn.BatchNorm2d(256)
-
         self.conv4 = nn.ConvTranspose2d(256,  128, 4, 2, 1, bias=False)
         self.bn4 = nn.BatchNorm2d(128)
-
         self.conv5 = nn.ConvTranspose2d(128,  n_c, 4, 2, 1, bias=False)
 
     def forward(self, z):
@@ -33,22 +29,19 @@ class DC_Generator(BaseModel):
         z = F.relu(self.bn2(self.conv2(z)))
         z = F.relu(self.bn3(self.conv3(z)))
         z = F.relu(self.bn4(self.conv4(z)))
-        return F.sigmoid(self.conv5(z))
+        return F.tanh(self.conv5(z))
 
-class DC_discriminator(BaseModel):
+class DC_Discriminator(BaseModel):
     def __init__(self, n_c=3, n_size=4):
-        super(DC_discriminator, self).__init__()
+        super(DC_Discriminator, self).__init__()
         self.conv1 = nn.Conv2d(3, 128, 4, 2, 1, bias=False)
 
         self.conv2 = nn.Conv2d(128, 256, 4, 2, 1, bias=False)
         self.bn2 = nn.BatchNorm2d(256)
-
         self.conv3 = nn.Conv2d(256, 512, 4, 2, 1, bias=False)
         self.bn3 = nn.BatchNorm2d(512)
-
         self.conv4 = nn.Conv2d(512, 1024, 4, 2, 1, bias=False)
         self.bn4 = nn.BatchNorm2d(1024)
-
         self.conv5 = nn.Conv2d(1024, 1, n_size, 1, 0, bias=False)
 
     def forward(self, x):
@@ -63,7 +56,7 @@ class DC_GAN(BaseModel):
     def __init__(self, n_z, n_c, n_size):
         super(DC_GAN, self).__init__()
         self.G = DC_Generator(n_z, n_c, n_size)
-        self.D = DC_discriminator(n_c, n_size)
+        self.D = DC_Discriminator(n_c, n_size)
 
     def forward(self, z, x_real):
         x_fake = self.G(z)
@@ -73,11 +66,13 @@ class DC_GAN(BaseModel):
 
         return score, x_fake
 
+
+
 if __name__ == '__main__':
     z = torch.randn(100).view(1, 100, 1, 1)
 
     G = DC_Generator(100, n_size=2)
-    D = DC_discriminator(n_size=2)
+    D = DC_Discriminator(n_size=2)
 
     x = G(z)
     out = D(x)
