@@ -1,10 +1,13 @@
 import torch
+# import torch.nn as nn
+import torch.nn.functional as F
 eps = 1e-8
 
 
-def criterion(output, target):
-    g_loss = -torch.mean(torch.log(torch.abs(target - output) + eps))
-    return g_loss
+def gan_loss(output, label):
+    # loss = 
+    target = torch.full_like(output, label)
+    return F.mse_loss(output, target)
 
 
 def D_loss(out_fake, out_real):

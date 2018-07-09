@@ -8,6 +8,7 @@ from datasets import *
 
 
 class SVHNDataLoader(BaseDataLoader):
+    
     def __init__(self, data_dir, batch_size, valid_batch_size=1000, validation_split=0.0, validation_fold=0, shuffle=False, num_workers=4):
         
         self.batch_size = batch_size
@@ -16,8 +17,8 @@ class SVHNDataLoader(BaseDataLoader):
         trsfm = transforms.Compose([
             transforms.ToTensor(),
             # Normalization that every pytorch pretrained models expect
-            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
-            #                       std=[0.229, 0.224, 0.225])
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                  std=[0.229, 0.224, 0.225])
         ])
         self.dataset = datasets.SVHN(data_dir, split='train', transform=trsfm, download=True)
         super(SVHNDataLoader, self).__init__(self.dataset, self.batch_size, self.valid_batch_size, shuffle, validation_split, validation_fold, num_workers)
@@ -73,6 +74,7 @@ class CubDataLoader(BaseDataLoader):
         target = torch.zeros((data.shape[0], ), dtype=torch.long)
         #TODO: implement target packing
         return data, target
+
 
 if __name__ == '__main__':
     # coco_loader = CocoDataLoader('../cocoapi', 4)

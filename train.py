@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from model.model import DC_GAN
-from model.loss import criterion
+from model.loss import gan_loss
 # from model.metric import accuracy
 from data_loader import CocoDataLoader, CubDataLoader
 from trainer import Trainer
@@ -61,7 +61,7 @@ def main(args):
     train_logger = Logger()
 
     # Specifying loss function, metric(s), and optimizer
-    loss = criterion
+    loss = gan_loss
     metrics = []
     g_optimizer = optim.Adam(model.G.parameters(), lr=args.lr, weight_decay=args.wd, amsgrad=True, betas=(0.5, 0.999))
     d_optimizer = optim.Adam(model.D.parameters(), lr=args.lr, weight_decay=args.wd, amsgrad=True, betas=(0.5, 0.999))

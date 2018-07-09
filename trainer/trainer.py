@@ -45,30 +45,30 @@ class Trainer(BaseTrainer):
             real_label = 1
             fake_label = 0
             data = data.to(self.device)
-            label = torch.full((batch_size, ), real_label, device=self.device)
+            # label = torch.full((batch_size, ), real_label, device=self.device)
 
             # train D with real data
             self.g_optimizer.zero_grad()
             self.d_optimizer.zero_grad()
             # output, fake_x = self.model(z, data)
             output = self.model.D(data)
-            errD_real = self.loss(output, label)
+            errD_real = self.loss(output, real_label)
             errD_real.backward(retain_graph=True)
 
             # train D with fake data
-            label.fill_(fake_label)
+            # label.fill_(fake_label)
             z = torch.randn((batch_size, 100, 1, 1), device=self.device)
             fake_x = self.model.G(z)
             output = self.model.D(fake_x)
-            errD_fake = self.loss(output, label)
+            errD_fake = self.loss(output, fake_label)
             errD_fake.backward(retain_graph=True)
 
             self.d_optimizer.step()
 
             # train G
-            label.fill_(real_label)
+            # label.fill_(real_label)
             # output = self.model.D(fake_x)
-            errG = self.loss(output, label)
+            errG = self.loss(output, real_label)
             errG.backward()
 
             loss_D = errD_fake.item() + errD_real.item()

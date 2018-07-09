@@ -35,17 +35,17 @@ class DC_Discriminator(BaseModel):
     def __init__(self, n_c=3, n_size=4):
         super(DC_Discriminator, self).__init__()
         self.conv1 = nn.Conv2d(3, 128, 4, 2, 1, bias=False)
-
+        self.bn1 = nn.BatchNorm2d(128)
         self.conv2 = nn.Conv2d(128, 256, 4, 2, 1, bias=False)
         self.bn2 = nn.BatchNorm2d(256)
         self.conv3 = nn.Conv2d(256, 512, 4, 2, 1, bias=False)
         self.bn3 = nn.BatchNorm2d(512)
-        self.conv4 = nn.Conv2d(512, 1024, 4, 2, 1, bias=False)
-        self.bn4 = nn.BatchNorm2d(1024)
-        self.conv5 = nn.Conv2d(1024, 1, n_size, 1, 0, bias=False)
+        self.conv4 = nn.Conv2d(512, 512, 3, 1, 1, bias=False)
+        self.bn4 = nn.BatchNorm2d(512)
+        self.conv5 = nn.Conv2d(512, 1, 1, 1, 0, bias=False)
 
     def forward(self, x):
-        x = F.leaky_relu_(self.conv1(x), 0.2) # 여기는 왜 bn을 안할까??
+        x = F.leaky_relu_(self.bn1(self.conv1(x)), 0.2) # 여기는 왜 bn을 안할까??
         x = F.leaky_relu_(self.bn2(self.conv2(x)), 0.2)
         x = F.leaky_relu_(self.bn3(self.conv3(x)), 0.2)
         x = F.leaky_relu_(self.bn4(self.conv4(x)), 0.2)
